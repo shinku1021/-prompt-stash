@@ -176,8 +176,9 @@
   };
 
   window.checkPassword = function () {
-    const val = document.getElementById('pwInput').value;
-    if (val === ADMIN_PASSWORD) {
+    const val = document.getElementById('pwInput').value.trim().replace(/！/g, '!');
+    const expected = ADMIN_PASSWORD.replace(/！/g, '!');
+    if (val === expected) {
       document.getElementById('lockScreen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
     } else {
