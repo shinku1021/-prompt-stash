@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PromptStash — プロンプト共有ライブラリ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #14151c;
+    --surface: #1c1e29;
+    --surface-2: #23273a;
+    --border: #33374a;
+    --text: #eceaf4;
+    --text-muted: #9497ac;
+    --mint: #6fe7c0;
+    --amber: #f2a65a;
+    --violet: #8b85f0;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    padding: 64px 24px 40px;
+    max-width: 1040px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--mint);
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .eyebrow::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 8px var(--mint);
+    animation: blink 1.6s ease-in-out infinite;
+  }
+
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 700;
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  header p {
+    color: var(--text-muted);
+    font-size: 16px;
+    max-width: 560px;
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  .filters {
+    max-width: 1040px;
+    margin: 32px auto 0;
+    padding: 0 24px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 7px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .chip:hover { border-color: var(--mint); color: var(--text); }
+  .chip.active { border-color: var(--mint); color: var(--mint); background: rgba(111,231,192,0.08); }
+
+  main {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 40px 24px 100px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 18px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+
+  .tag.text { background: rgba(139,133,240,0.15); color: var(--violet); }
+  .tag.image { background: rgba(242,166,90,0.15); color: var(--amber); }
+  .tag.code { background: rgba(111,231,192,0.15); color: var(--mint); }
+  .tag.video { background: rgba(240,133,180,0.15); color: #f085b4; }
+
+  .card h3 {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .prompt-body {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #c9cbe0;
+    flex: 1;
+  }
+
+  .prompt-body .var {
+    color: var(--mint);
+  }
+
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .likes {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .copy-btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 7px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .copy-btn:hover { border-color: var(--mint); }
+  .copy-btn.copied { background: var(--mint); color: var(--ink); border-color: var(--mint); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">STEP 2 — CONNECTED TO SUPABASE</div>
+  <h1>PromptStash</h1>
+  <p>誰でも使える、AIプロンプトの共有ライブラリ。テキスト生成・画像生成・コーディングなど、ジャンルを問わず投稿できます。</p>
+</header>
+
+<div class="filters" id="filters">
+  <button class="chip active" data-filter="all">すべて</button>
+  <button class="chip" data-filter="text">テキスト生成</button>
+  <button class="chip" data-filter="image">画像生成</button>
+  <button class="chip" data-filter="code">コーディング</button>
+  <button class="chip" data-filter="video">動画・音声</button>
+</div>
+
+<main id="grid"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+// ここの2行を、あなた自身のSupabaseプロジェクトの値に書き換えてください
+const SUPABASE_URL = 'https://yoblldcldamfgokhghzg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvYmxsZGNsZGFtZmdva2hnaHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NDY2OTYsImV4cCI6MjEwMjAyMjY5Nn0.wxeJ9G9NG6YqlwdnVZtXz4pj0hwDxTU6C5syZ9XojQ0';
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const grid = document.getElementById('grid');
+const filters = document.getElementById('filters');
+let prompts = [];
+
+function escapeVars(text) {
+  // {変数名} を目立つ色つきのspanに変換して表示する
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\{([^}]+)\}/g, '<span class="var">{$1}</span>');
+}
+
+function render(filter) {
+  grid.innerHTML = '';
+  prompts
+    .filter(p => filter === 'all' || p.category === filter)
+    .forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-top">
+          <h3>${p.title}</h3>
+          <span class="tag ${p.category}">${p.tag_label}</span>
+        </div>
+        <div class="prompt-body">${escapeVars(p.body)}</div>
+        <div class="card-footer">
+          <span class="likes">♥ ${p.likes}</span>
+          <button class="copy-btn">コピー</button>
+        </div>
+      `;
+      card.querySelector('.copy-btn').addEventListener('click', (e) => {
+        navigator.clipboard.writeText(p.body);
+        e.target.textContent = 'コピーしました';
+        e.target.classList.add('copied');
+        setTimeout(() => {
+          e.target.textContent = 'コピー';
+          e.target.classList.remove('copied');
+        }, 1500);
+      });
+      grid.appendChild(card);
+    });
+}
+
+filters.addEventListener('click', (e) => {
+  if (!e.target.classList.contains('chip')) return;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  e.target.classList.add('active');
+  render(e.target.dataset.filter);
+});
+
+async function loadPrompts() {
+  grid.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono); font-size: 13px;">読み込み中...</p>';
+  const { data, error } = await supabaseClient
+    .from('prompts')
+    .select('*')
+    .order('likes', { ascending: false });
+
+  if (error) {
+    grid.innerHTML = `<p style="color: var(--amber); font-family: var(--font-mono); font-size: 13px;">読み込みエラー: ${error.message}</p>`;
+    console.error(error);
+    return;
+  }
+
+  prompts = data;
+  render('all');
+}
+
+loadPrompts();
+})();
+</script>
+
+</body>
+</html>
