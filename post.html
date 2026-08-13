@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PromptStash — 投稿</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #14151c;
+    --surface: #1c1e29;
+    --surface-2: #23273a;
+    --border: #33374a;
+    --text: #eceaf4;
+    --text-muted: #9497ac;
+    --mint: #6fe7c0;
+    --amber: #f2a65a;
+    --violet: #8b85f0;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 56px 24px 100px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--amber);
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+  .sub { color: var(--text-muted); font-size: 14px; margin: 0 0 20px; }
+  .back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--mint);
+    text-decoration: none;
+  }
+
+  label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    margin-top: 20px;
+  }
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+  }
+  textarea {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    min-height: 140px;
+    resize: vertical;
+    line-height: 1.6;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--mint);
+  }
+
+  .btn {
+    margin-top: 28px;
+    width: 100%;
+    padding: 13px;
+    border-radius: 8px;
+    border: none;
+    background: var(--mint);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    margin-top: 12px;
+  }
+
+  .msg {
+    margin-top: 16px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    display: none;
+  }
+  .msg.ok { background: rgba(111,231,192,0.1); color: var(--mint); display: block; }
+  .msg.err { background: rgba(242,166,90,0.1); color: var(--amber); display: block; }
+
+  .auth-box {
+    max-width: 360px;
+    margin: 100px auto;
+    padding: 0 24px;
+  }
+  .auth-box h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    margin-bottom: 4px;
+  }
+  .auth-box .sub { margin-bottom: 24px; }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 9px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .tab.active { border-color: var(--mint); color: var(--mint); }
+
+  .userbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .userbar span {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .logout-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  #authScreen { display: none; }
+  #app { display: none; }
+</style>
+</head>
+<body>
+
+<div class="auth-box" id="authScreen">
+  <div class="tabs">
+    <div class="tab active" id="tabLogin" onclick="switchTab('login')">ログイン</div>
+    <div class="tab" id="tabSignup" onclick="switchTab('signup')">新規登録</div>
+  </div>
+  <h2 id="authTitle">ログイン</h2>
+  <p class="sub" id="authSub">アカウントでログインして投稿しましょう。</p>
+
+  <label>メールアドレス</label>
+  <input type="email" id="authEmail" placeholder="you@example.com" />
+
+  <label>パスワード</label>
+  <input type="password" id="authPassword" placeholder="6文字以上" />
+
+  <button class="btn" id="authSubmitBtn" onclick="submitAuth()">ログイン</button>
+  <div class="msg" id="authMsg"></div>
+</div>
+
+<div id="app">
+  <div class="wrap">
+    <a href="index.html" class="back-link">← トップページへ戻る</a>
+    <div class="eyebrow">新規プロンプト投稿</div>
+    <div class="userbar">
+      <h1 style="margin:0;">プロンプトを追加</h1>
+    </div>
+    <div class="userbar">
+      <span id="userEmail"></span>
+      <button class="logout-btn" onclick="logout()">ログアウト</button>
+    </div>
+    <p class="sub">ここで投稿した内容は、すぐにトップページの一覧に反映されます。</p>
+
+    <label>カテゴリ</label>
+    <select id="category">
+      <option value="text">テキスト生成</option>
+      <option value="image">画像生成</option>
+      <option value="code">コーディング</option>
+      <option value="video">動画・音声</option>
+    </select>
+
+    <label>タイトル</label>
+    <input type="text" id="title" placeholder="例：SNS投稿の反応が良くなるフック文3案" />
+
+    <label>プロンプト本文（変数は {変数名} の形で）</label>
+    <textarea id="body" placeholder="例：{テーマ}についてのSNS投稿を作ります。最初の1文（フック）を..."></textarea>
+
+    <button class="btn" id="submitBtn" onclick="submitPrompt()">投稿する</button>
+    <div class="msg" id="resultMsg"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+  const SUPABASE_URL = 'https://yoblldcldamfgokhghzg.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvYmxsZGNsZGFtZmdva2hnaHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NDY2OTYsImV4cCI6MjEwMjAyMjY5Nn0.wxeJ9G9NG6YqlwdnVZtXz4pj0hwDxTU6C5syZ9XojQ0';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const categoryLabels = {
+    text: 'テキスト生成',
+    image: '画像生成',
+    code: 'コーディング',
+    video: '動画・音声',
+  };
+
+  let mode = 'login'; // 'login' or 'signup'
+
+  window.switchTab = function (m) {
+    mode = m;
+    document.getElementById('tabLogin').classList.toggle('active', m === 'login');
+    document.getElementById('tabSignup').classList.toggle('active', m === 'signup');
+    document.getElementById('authTitle').textContent = m === 'login' ? 'ログイン' : '新規登録';
+    document.getElementById('authSub').textContent = m === 'login'
+      ? 'アカウントでログインして投稿しましょう。'
+      : '新しいアカウントを作成します。';
+    document.getElementById('authSubmitBtn').textContent = m === 'login' ? 'ログイン' : '登録する';
+    document.getElementById('authMsg').style.display = 'none';
+  };
+
+  window.submitAuth = async function () {
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const msg = document.getElementById('authMsg');
+    const btn = document.getElementById('authSubmitBtn');
+
+    if (!email || !password) {
+      msg.className = 'msg err';
+      msg.textContent = 'メールアドレスとパスワードを入力してください。';
+      return;
+    }
+
+    btn.disabled = true;
+
+    let result;
+    if (mode === 'login') {
+      result = await supabaseClient.auth.signInWithPassword({ email, password });
+    } else {
+      result = await supabaseClient.auth.signUp({ email, password });
+    }
+
+    btn.disabled = false;
+
+    if (result.error) {
+      msg.className = 'msg err';
+      msg.textContent = result.error.message;
+      return;
+    }
+
+    if (mode === 'signup' && !result.data.session) {
+      msg.className = 'msg ok';
+      msg.textContent = '登録しました。確認メールを送りましたので確認してください。';
+      return;
+    }
+
+    showApp(result.data.session);
+  };
+
+  window.logout = async function () {
+    await supabaseClient.auth.signOut();
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'block';
+  };
+
+  function showApp(session) {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('userEmail').textContent = session.user.email;
+  }
+
+  window.submitPrompt = async function () {
+    const category = document.getElementById('category').value;
+    const title = document.getElementById('title').value.trim();
+    const body = document.getElementById('body').value.trim();
+    const msg = document.getElementById('resultMsg');
+    const btn = document.getElementById('submitBtn');
+
+    if (!title || !body) {
+      msg.className = 'msg err';
+      msg.textContent = 'タイトルと本文を入力してください。';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '投稿中...';
+
+    const { error } = await supabaseClient.from('prompts').insert({
+      category: category,
+      tag_label: categoryLabels[category],
+      title: title,
+      body: body,
+      likes: 0,
+    });
+
+    btn.disabled = false;
+    btn.textContent = '投稿する';
+
+    if (error) {
+      msg.className = 'msg err';
+      msg.textContent = '投稿に失敗しました: ' + error.message;
+      return;
+    }
+
+    msg.className = 'msg ok';
+    msg.textContent = '投稿しました！トップページで確認してください。';
+    document.getElementById('title').value = '';
+    document.getElementById('body').value = '';
+  };
+
+  // 起動時にログイン状態を確認
+  (async function init() {
+    const { data } = await supabaseClient.auth.getSession();
+    if (data.session) {
+      showApp(data.session);
+    } else {
+      document.getElementById('authScreen').style.display = 'block';
+    }
+  })();
+})();
+</script>
+
+</body>
+</html>
