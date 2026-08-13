@@ -102,6 +102,30 @@
   .chip:hover { border-color: var(--mint); color: var(--text); }
   .chip.active { border-color: var(--mint); color: var(--mint); background: rgba(111,231,192,0.08); }
 
+  .search-wrap {
+    max-width: 1040px;
+    margin: 20px auto 0;
+    padding: 0 24px;
+  }
+
+  .search-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: var(--mint);
+  }
+
+  .search-input::placeholder { color: var(--text-muted); }
+
   main {
     max-width: 1040px;
     margin: 0 auto;
@@ -224,6 +248,10 @@
   <a href="post.html" style="display: inline-block; margin-top: 16px; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-decoration: none; border: 1px solid var(--border); padding: 6px 12px; border-radius: 100px;">＋ プロンプトを投稿する</a>
 </header>
 
+<div class="search-wrap">
+  <input type="text" class="search-input" id="searchInput" placeholder="🔍 プロンプトを検索（タイトル・本文から）" />
+</div>
+
 <div class="filters" id="filters">
   <button class="chip active" data-filter="all">すべて</button>
   <button class="chip" data-filter="text">テキスト生成</button>
@@ -251,11 +279,13 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 const grid = document.getElementById('grid');
 const filters = document.getElementById('filters');
 const sortFilters = document.getElementById('sortFilters');
+const searchInput = document.getElementById('searchInput');
 let prompts = [];
 let likedIds = new Set(); // 自分がいいね済みのprompt_id一覧
 let currentUser = null;
 let currentFilter = 'all';
 let currentSort = 'popular';
+let searchQuery = '';
 
 function escapeVars(text) {
   // {変数名} を目立つ色つきのspanに変換して表示する
@@ -276,11 +306,24 @@ function sortedPrompts() {
   return list;
 }
 
+function matchesSearch(p) {
+  if (!searchQuery) return true;
+  const q = searchQuery.toLowerCase();
+  return p.title.toLowerCase().includes(q) || p.body.toLowerCase().includes(q);
+}
+
 function render() {
   grid.innerHTML = '';
-  sortedPrompts()
+  const list = sortedPrompts()
     .filter(p => currentFilter === 'all' || p.category === currentFilter)
-    .forEach(p => {
+    .filter(matchesSearch);
+
+  if (list.length === 0) {
+    grid.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono); font-size: 13px;">該当するプロンプトが見つかりませんでした。</p>';
+    return;
+  }
+
+  list.forEach(p => {
       const card = document.createElement('div');
       card.className = 'card';
       const isLiked = likedIds.has(p.id);
@@ -342,6 +385,11 @@ async function toggleLike(p) {
   }
   render();
 }
+
+searchInput.addEventListener('input', (e) => {
+  searchQuery = e.target.value.trim();
+  render();
+});
 
 filters.addEventListener('click', (e) => {
   if (!e.target.classList.contains('chip')) return;
