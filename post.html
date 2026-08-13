@@ -194,7 +194,17 @@
   <input type="password" id="authPassword" placeholder="6文字以上" />
 
   <button class="btn" id="authSubmitBtn" onclick="submitAuth()">ログイン</button>
+  <div style="text-align: right; margin-top: 10px;">
+    <a href="#" id="forgotLink" onclick="showForgot(event)" style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-decoration: underline;">パスワードをお忘れですか？</a>
+  </div>
   <div class="msg" id="authMsg"></div>
+
+  <div id="forgotBox" style="display:none; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+    <p class="sub" style="margin-bottom: 12px;">登録済みのメールアドレスに、パスワード再設定用のリンクを送ります。</p>
+    <input type="email" id="forgotEmail" placeholder="you@example.com" />
+    <button class="btn secondary" onclick="sendResetEmail()">送信する</button>
+    <div class="msg" id="forgotMsg"></div>
+  </div>
 </div>
 
 <div id="app">
@@ -255,6 +265,36 @@
       : '新しいアカウントを作成します。';
     document.getElementById('authSubmitBtn').textContent = m === 'login' ? 'ログイン' : '登録する';
     document.getElementById('authMsg').style.display = 'none';
+    document.getElementById('forgotBox').style.display = 'none';
+    document.getElementById('forgotLink').style.display = m === 'login' ? 'inline' : 'none';
+  };
+
+  window.showForgot = function (e) {
+    e.preventDefault();
+    document.getElementById('forgotBox').style.display = 'block';
+  };
+
+  window.sendResetEmail = async function () {
+    const email = document.getElementById('forgotEmail').value.trim();
+    const msg = document.getElementById('forgotMsg');
+
+    if (!email) {
+      msg.className = 'msg err';
+      msg.textContent = 'メールアドレスを入力してください。';
+      return;
+    }
+
+    const redirectTo = window.location.origin + '/reset-password.html';
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+
+    if (error) {
+      msg.className = 'msg err';
+      msg.textContent = error.message;
+      return;
+    }
+
+    msg.className = 'msg ok';
+    msg.textContent = 'メールを送信しました。届いたリンクからパスワードを再設定してください。';
   };
 
   window.submitAuth = async function () {
