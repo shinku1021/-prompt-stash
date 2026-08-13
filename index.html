@@ -180,6 +180,25 @@
     gap: 5px;
   }
 
+  .like-btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .like-btn:hover { background: var(--surface-2); }
+  .like-btn.liked { color: #f085b4; }
+  .like-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+
   .copy-btn {
     font-family: var(--font-mono);
     font-size: 12px;
@@ -213,6 +232,11 @@
   <button class="chip" data-filter="video">動画・音声</button>
 </div>
 
+<div class="filters" id="sortFilters" style="margin-top: 10px;">
+  <button class="chip active" data-sort="popular">🔥 人気順</button>
+  <button class="chip" data-sort="new">🆕 新着順</button>
+</div>
+
 <main id="grid"></main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -226,7 +250,12 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
 const grid = document.getElementById('grid');
 const filters = document.getElementById('filters');
+const sortFilters = document.getElementById('sortFilters');
 let prompts = [];
+let likedIds = new Set(); // 自分がいいね済みのprompt_id一覧
+let currentUser = null;
+let currentFilter = 'all';
+let currentSort = 'popular';
 
 function escapeVars(text) {
   // {変数名} を目立つ色つきのspanに変換して表示する
@@ -237,13 +266,24 @@ function escapeVars(text) {
     .replace(/\{([^}]+)\}/g, '<span class="var">{$1}</span>');
 }
 
-function render(filter) {
+function sortedPrompts() {
+  const list = [...prompts];
+  if (currentSort === 'popular') {
+    list.sort((a, b) => b.likes - a.likes);
+  } else {
+    list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+  return list;
+}
+
+function render() {
   grid.innerHTML = '';
-  prompts
-    .filter(p => filter === 'all' || p.category === filter)
+  sortedPrompts()
+    .filter(p => currentFilter === 'all' || p.category === currentFilter)
     .forEach(p => {
       const card = document.createElement('div');
       card.className = 'card';
+      const isLiked = likedIds.has(p.id);
       card.innerHTML = `
         <div class="card-top">
           <h3>${p.title}</h3>
@@ -251,7 +291,9 @@ function render(filter) {
         </div>
         <div class="prompt-body">${escapeVars(p.body)}</div>
         <div class="card-footer">
-          <span class="likes">♥ ${p.likes}</span>
+          <button class="like-btn ${isLiked ? 'liked' : ''}" data-id="${p.id}">
+            ${isLiked ? '♥' : '♡'} ${p.likes}
+          </button>
           <button class="copy-btn">コピー</button>
         </div>
       `;
@@ -264,23 +306,82 @@ function render(filter) {
           e.target.classList.remove('copied');
         }, 1500);
       });
+      card.querySelector('.like-btn').addEventListener('click', () => toggleLike(p));
       grid.appendChild(card);
     });
 }
 
+async function toggleLike(p) {
+  if (!currentUser) {
+    if (confirm('いいねをするにはログインが必要です。ログインページへ移動しますか？')) {
+      window.location.href = 'post.html';
+    }
+    return;
+  }
+
+  const isLiked = likedIds.has(p.id);
+
+  if (isLiked) {
+    const { error } = await supabaseClient
+      .from('prompt_likes')
+      .delete()
+      .eq('user_id', currentUser.id)
+      .eq('prompt_id', p.id);
+    if (!error) {
+      likedIds.delete(p.id);
+      p.likes -= 1;
+    }
+  } else {
+    const { error } = await supabaseClient
+      .from('prompt_likes')
+      .insert({ user_id: currentUser.id, prompt_id: p.id });
+    if (!error) {
+      likedIds.add(p.id);
+      p.likes += 1;
+    }
+  }
+  render();
+}
+
 filters.addEventListener('click', (e) => {
   if (!e.target.classList.contains('chip')) return;
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#filters .chip').forEach(c => c.classList.remove('active'));
   e.target.classList.add('active');
-  render(e.target.dataset.filter);
+  currentFilter = e.target.dataset.filter;
+  render();
 });
+
+sortFilters.addEventListener('click', (e) => {
+  if (!e.target.classList.contains('chip')) return;
+  document.querySelectorAll('#sortFilters .chip').forEach(c => c.classList.remove('active'));
+  e.target.classList.add('active');
+  currentSort = e.target.dataset.sort;
+  render();
+});
+
+async function loadLikedIds() {
+  if (!currentUser) {
+    likedIds = new Set();
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from('prompt_likes')
+    .select('prompt_id')
+    .eq('user_id', currentUser.id);
+  if (!error && data) {
+    likedIds = new Set(data.map(row => row.prompt_id));
+  }
+}
 
 async function loadPrompts() {
   grid.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono); font-size: 13px;">読み込み中...</p>';
+
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  currentUser = sessionData.session ? sessionData.session.user : null;
+
   const { data, error } = await supabaseClient
     .from('prompts')
-    .select('*')
-    .order('likes', { ascending: false });
+    .select('*');
 
   if (error) {
     grid.innerHTML = `<p style="color: var(--amber); font-family: var(--font-mono); font-size: 13px;">読み込みエラー: ${error.message}</p>`;
@@ -289,7 +390,8 @@ async function loadPrompts() {
   }
 
   prompts = data;
-  render('all');
+  await loadLikedIds();
+  render();
 }
 
 loadPrompts();
