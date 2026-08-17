@@ -212,7 +212,7 @@
     <a href="index.html" class="back-link">← トップページへ戻る</a>
     <div class="eyebrow">新規プロンプト投稿</div>
     <div class="userbar">
-      <h1 style="margin:0;">プロンプトを追加</h1>
+      <h1 style="margin:0;" id="formTitle">プロンプトを追加</h1>
     </div>
     <div class="userbar">
       <span id="userEmail"></span>
@@ -235,7 +235,14 @@
     <textarea id="body" placeholder="例：{テーマ}についてのSNS投稿を作ります。最初の1文（フック）を..."></textarea>
 
     <button class="btn" id="submitBtn" onclick="submitPrompt()">投稿する</button>
+    <button class="btn secondary" id="cancelEditBtn" onclick="cancelEdit()" style="display:none;">編集をキャンセル</button>
     <div class="msg" id="resultMsg"></div>
+
+    <div style="margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border);">
+      <h2 style="font-family: var(--font-display); font-size: 18px; margin: 0 0 4px;">自分の投稿一覧</h2>
+      <p class="sub" style="margin-bottom: 8px;">ここから自分の投稿を編集・削除できます。</p>
+      <div id="myPromptsList"></div>
+    </div>
   </div>
 </div>
 
@@ -254,6 +261,8 @@
   };
 
   let mode = 'login'; // 'login' or 'signup'
+  let currentUser = null;
+  let editingId = null; // 編集中のプロンプトID（nullなら新規投稿モード）
 
   window.switchTab = function (m) {
     mode = m;
@@ -342,9 +351,11 @@
   };
 
   function showApp(session) {
+    currentUser = session.user;
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     document.getElementById('userEmail').textContent = session.user.email;
+    loadMyPrompts();
   }
 
   window.submitPrompt = async function () {
@@ -361,30 +372,124 @@
     }
 
     btn.disabled = true;
-    btn.textContent = '投稿中...';
+    btn.textContent = editingId ? '更新中...' : '投稿中...';
 
-    const { error } = await supabaseClient.from('prompts').insert({
-      category: category,
-      tag_label: categoryLabels[category],
-      title: title,
-      body: body,
-      likes: 0,
-    });
+    let error;
+    if (editingId) {
+      const result = await supabaseClient
+        .from('prompts')
+        .update({
+          category: category,
+          tag_label: categoryLabels[category],
+          title: title,
+          body: body,
+        })
+        .eq('id', editingId);
+      error = result.error;
+    } else {
+      const result = await supabaseClient.from('prompts').insert({
+        category: category,
+        tag_label: categoryLabels[category],
+        title: title,
+        body: body,
+        likes: 0,
+        user_id: currentUser.id,
+      });
+      error = result.error;
+    }
 
     btn.disabled = false;
-    btn.textContent = '投稿する';
+    btn.textContent = editingId ? '更新する' : '投稿する';
 
     if (error) {
       msg.className = 'msg err';
-      msg.textContent = '投稿に失敗しました: ' + error.message;
+      msg.textContent = (editingId ? '更新' : '投稿') + 'に失敗しました: ' + error.message;
       return;
     }
 
     msg.className = 'msg ok';
-    msg.textContent = '投稿しました！トップページで確認してください。';
+    msg.textContent = editingId ? '更新しました！' : '投稿しました！トップページで確認してください。';
+
+    if (editingId) {
+      cancelEdit();
+    } else {
+      document.getElementById('title').value = '';
+      document.getElementById('body').value = '';
+    }
+    loadMyPrompts();
+  };
+
+  window.cancelEdit = function () {
+    editingId = null;
+    document.getElementById('category').value = 'text';
     document.getElementById('title').value = '';
     document.getElementById('body').value = '';
+    document.getElementById('submitBtn').textContent = '投稿する';
+    document.getElementById('formTitle').textContent = 'プロンプトを追加';
+    document.getElementById('cancelEditBtn').style.display = 'none';
   };
+
+  window.editPrompt = function (p) {
+    editingId = p.id;
+    document.getElementById('category').value = p.category;
+    document.getElementById('title').value = p.title;
+    document.getElementById('body').value = p.body;
+    document.getElementById('submitBtn').textContent = '更新する';
+    document.getElementById('formTitle').textContent = 'プロンプトを編集';
+    document.getElementById('cancelEditBtn').style.display = 'block';
+    window.scrollTo({ top: document.getElementById('formTitle').offsetTop - 20, behavior: 'smooth' });
+  };
+
+  window.deletePrompt = async function (id) {
+    if (!confirm('このプロンプトを削除しますか？この操作は取り消せません。')) return;
+    const { error } = await supabaseClient.from('prompts').delete().eq('id', id);
+    if (error) {
+      alert('削除に失敗しました: ' + error.message);
+      return;
+    }
+    if (editingId === id) cancelEdit();
+    loadMyPrompts();
+  };
+
+  async function loadMyPrompts() {
+    const listEl = document.getElementById('myPromptsList');
+    listEl.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono); font-size: 12px;">読み込み中...</p>';
+
+    const { data, error } = await supabaseClient
+      .from('prompts')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      listEl.innerHTML = `<p style="color: var(--amber); font-family: var(--font-mono); font-size: 12px;">読み込みエラー: ${error.message}</p>`;
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      listEl.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono); font-size: 12px;">まだ投稿がありません。</p>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    data.forEach(p => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); gap: 12px;';
+      row.innerHTML = `
+        <div style="min-width:0;">
+          <div style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.title}</div>
+          <div style="font-family: var(--font-mono); font-size:11px; color:var(--text-muted); margin-top:2px;">${categoryLabels[p.category]} ・ ♥ ${p.likes}</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+          <button class="row-btn" data-action="edit" style="background:none; border:1px solid var(--border); color:var(--text-muted); font-family:var(--font-mono); font-size:11px; padding:5px 10px; border-radius:6px; cursor:pointer;">編集</button>
+          <button class="row-btn" data-action="delete" style="background:none; border:1px solid var(--border); color:var(--amber); font-family:var(--font-mono); font-size:11px; padding:5px 10px; border-radius:6px; cursor:pointer;">削除</button>
+        </div>
+      `;
+      row.querySelector('[data-action="edit"]').addEventListener('click', () => editPrompt(p));
+      row.querySelector('[data-action="delete"]').addEventListener('click', () => deletePrompt(p.id));
+      listEl.appendChild(row);
+    });
+  }
 
   // 起動時にログイン状態を確認
   (async function init() {
