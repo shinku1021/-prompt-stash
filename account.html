@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>マイページ — PromptStash</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #14151c;
+    --surface: #1c1e29;
+    --border: #33374a;
+    --text: #eceaf4;
+    --text-muted: #9497ac;
+    --mint: #6fe7c0;
+    --amber: #f2a65a;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .navbar {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .navbar .brand { font-family: var(--font-display); font-weight: 700; color: var(--text); text-decoration: none; margin-right: auto; }
+  .navbar a, .navbar button { color: var(--text-muted); text-decoration: none; background: none; border: none; font-family: var(--font-mono); font-size: 13px; cursor: pointer; }
+  .navbar a:hover, .navbar button:hover { color: var(--mint); }
+
+  .wrap { max-width: 640px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-family: var(--font-display); font-size: 28px; margin: 0 0 24px; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 28px; }
+  .tab {
+    flex: 1; text-align: center; padding: 10px;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted);
+    font-family: var(--font-mono); font-size: 13px; cursor: pointer;
+  }
+  .tab.active { border-color: var(--mint); color: var(--mint); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  label {
+    display: block; font-family: var(--font-mono); font-size: 12px;
+    color: var(--text-muted); margin-bottom: 6px; margin-top: 20px;
+  }
+  input[type="text"], input[type="email"], input[type="password"] {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; color: var(--text);
+    font-family: var(--font-body); font-size: 14px;
+  }
+  input:focus { outline: none; border-color: var(--mint); }
+  .btn {
+    margin-top: 20px; padding: 11px 18px; border-radius: 8px; border: none;
+    background: var(--mint); color: var(--ink); font-family: var(--font-mono);
+    font-weight: 500; font-size: 13px; cursor: pointer;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .msg {
+    margin-top: 14px; font-family: var(--font-mono); font-size: 13px;
+    padding: 10px 14px; border-radius: 8px; display: none;
+  }
+  .msg.ok { background: rgba(111,231,192,0.1); color: var(--mint); display: block; }
+  .msg.err { background: rgba(242,166,90,0.1); color: var(--amber); display: block; }
+
+  .section-title { font-family: var(--font-display); font-size: 16px; margin: 36px 0 4px; }
+  .section-title:first-child { margin-top: 0; }
+  .hint { color: var(--text-muted); font-size: 13px; margin-bottom: 4px; }
+
+  #loginRequired { display:none; text-align:center; padding: 100px 24px; }
+  #loginRequired a { color: var(--mint); }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <a class="brand" href="index.html">PromptStash</a>
+  <a href="post.html">投稿する</a>
+  <a href="account.html">マイページ</a>
+  <button onclick="logout()">ログアウト</button>
+</div>
+
+<div id="loginRequired">
+  <p>マイページを見るにはログインが必要です。</p>
+  <a href="post.html">ログインページへ →</a>
+</div>
+
+<div class="wrap" id="app" style="display:none;">
+  <h1>マイページ</h1>
+
+  <div class="tabs">
+    <div class="tab active" id="tabPosts" onclick="switchTab('posts')">自分の投稿</div>
+    <div class="tab" id="tabSettings" onclick="switchTab('settings')">アカウント設定</div>
+  </div>
+
+  <div class="panel active" id="panelPosts">
+    <div id="myPromptsList"></div>
+  </div>
+
+  <div class="panel" id="panelSettings">
+    <div class="section-title">メールアドレスの変更</div>
+    <p class="hint">現在：<span id="currentEmail"></span></p>
+    <label>新しいメールアドレス</label>
+    <input type="email" id="newEmail" placeholder="new@example.com" />
+    <button class="btn" onclick="updateEmail()">メールアドレスを変更する</button>
+    <div class="msg" id="emailMsg"></div>
+
+    <div class="section-title">パスワードの変更</div>
+    <label>新しいパスワード</label>
+    <input type="password" id="newPassword" placeholder="6文字以上" />
+    <button class="btn" onclick="updatePassword()">パスワードを変更する</button>
+    <div class="msg" id="passwordMsg"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+  const SUPABASE_URL = 'https://yoblldcldamfgokhghzg.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvYmxsZGNsZGFtZmdva2hnaHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NDY2OTYsImV4cCI6MjEwMjAyMjY5Nn0.wxeJ9G9NG6YqlwdnVZtXz4pj0hwDxTU6C5syZ9XojQ0';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const categoryLabels = {
+    text: 'テキスト生成',
+    image: '画像生成',
+    code: 'コーディング',
+    video: '動画・音声',
+  };
+
+  let currentUser = null;
+
+  window.switchTab = function (t) {
+    document.getElementById('tabPosts').classList.toggle('active', t === 'posts');
+    document.getElementById('tabSettings').classList.toggle('active', t === 'settings');
+    document.getElementById('panelPosts').classList.toggle('active', t === 'posts');
+    document.getElementById('panelSettings').classList.toggle('active', t === 'settings');
+  };
+
+  window.logout = async function () {
+    await supabaseClient.auth.signOut();
+    window.location.href = 'post.html';
+  };
+
+  window.updateEmail = async function () {
+    const newEmail = document.getElementById('newEmail').value.trim();
+    const msg = document.getElementById('emailMsg');
+    if (!newEmail) {
+      msg.className = 'msg err';
+      msg.textContent = '新しいメールアドレスを入力してください。';
+      return;
+    }
+    const { error } = await supabaseClient.auth.updateUser({ email: newEmail });
+    if (error) {
+      msg.className = 'msg err';
+      msg.textContent = error.message;
+      return;
+    }
+    msg.className = 'msg ok';
+    msg.textContent = '確認メールを送信しました。新しいメールアドレス宛のメール内リンクをクリックすると変更が完了します。';
+  };
+
+  window.updatePassword = async function () {
+    const newPassword = document.getElementById('newPassword').value;
+    const msg = document.getElementById('passwordMsg');
+    if (!newPassword || newPassword.length < 6) {
+      msg.className = 'msg err';
+      msg.textContent = '6文字以上のパスワードを入力してください。';
+      return;
+    }
+    const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+    if (error) {
+      msg.className = 'msg err';
+      msg.textContent = error.message;
+      return;
+    }
+    msg.className = 'msg ok';
+    msg.textContent = 'パスワードを変更しました。';
+    document.getElementById('newPassword').value = '';
+  };
+
+  async function loadMyPrompts() {
+    const listEl = document.getElementById('myPromptsList');
+    listEl.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono); font-size: 12px;">読み込み中...</p>';
+
+    const { data, error } = await supabaseClient
+      .from('prompts')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      listEl.innerHTML = `<p style="color: var(--amber); font-family: var(--font-mono); font-size: 12px;">読み込みエラー: ${error.message}</p>`;
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      listEl.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono); font-size: 12px;">まだ投稿がありません。<a href="post.html" style="color:var(--mint);">投稿してみる →</a></p>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    data.forEach(p => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid var(--border); gap: 12px;';
+      row.innerHTML = `
+        <div style="min-width:0;">
+          <div style="font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.title}</div>
+          <div style="font-family: var(--font-mono); font-size:11px; color:var(--text-muted); margin-top:3px;">${categoryLabels[p.category]} ・ ♥ ${p.likes}</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+          <a href="post.html?edit=${p.id}" style="background:none; border:1px solid var(--border); color:var(--text-muted); font-family:var(--font-mono); font-size:11px; padding:6px 12px; border-radius:6px; text-decoration:none;">編集</a>
+          <button data-id="${p.id}" style="background:none; border:1px solid var(--border); color:var(--amber); font-family:var(--font-mono); font-size:11px; padding:6px 12px; border-radius:6px; cursor:pointer;">削除</button>
+        </div>
+      `;
+      row.querySelector('button').addEventListener('click', () => deletePrompt(p.id));
+      listEl.appendChild(row);
+    });
+  }
+
+  async function deletePrompt(id) {
+    if (!confirm('このプロンプトを削除しますか？この操作は取り消せません。')) return;
+    const { error } = await supabaseClient.from('prompts').delete().eq('id', id);
+    if (error) {
+      alert('削除に失敗しました: ' + error.message);
+      return;
+    }
+    loadMyPrompts();
+  }
+
+  (async function init() {
+    const { data } = await supabaseClient.auth.getSession();
+    if (!data.session) {
+      document.getElementById('loginRequired').style.display = 'block';
+      return;
+    }
+    currentUser = data.session.user;
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('currentEmail').textContent = currentUser.email;
+    loadMyPrompts();
+  })();
+})();
+</script>
+
+</body>
+</html>

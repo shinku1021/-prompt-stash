@@ -208,16 +208,19 @@
 </div>
 
 <div id="app">
+  <nav style="border-bottom: 1px solid var(--border); padding: 16px 24px;">
+    <div style="max-width: 640px; margin: 0 auto; display:flex; justify-content:space-between; align-items:center;">
+      <a href="index.html" style="font-family: var(--font-display); font-weight:700; font-size:16px; color:var(--text); text-decoration:none;">PromptStash</a>
+      <div style="display:flex; gap:18px; align-items:center;">
+        <a href="post.html" style="font-family: var(--font-mono); font-size:12px; color:var(--mint); text-decoration:none;">投稿する</a>
+        <a href="account.html" style="font-family: var(--font-mono); font-size:12px; color:var(--text-muted); text-decoration:none;">マイページ</a>
+        <button class="logout-btn" onclick="logout()">ログアウト</button>
+      </div>
+    </div>
+  </nav>
   <div class="wrap">
-    <a href="index.html" class="back-link">← トップページへ戻る</a>
     <div class="eyebrow">新規プロンプト投稿</div>
-    <div class="userbar">
-      <h1 style="margin:0;" id="formTitle">プロンプトを追加</h1>
-    </div>
-    <div class="userbar">
-      <span id="userEmail"></span>
-      <button class="logout-btn" onclick="logout()">ログアウト</button>
-    </div>
+    <h1 id="formTitle">プロンプトを追加</h1>
     <p class="sub">ここで投稿した内容は、すぐにトップページの一覧に反映されます。</p>
 
     <label>カテゴリ</label>
@@ -237,12 +240,6 @@
     <button class="btn" id="submitBtn" onclick="submitPrompt()">投稿する</button>
     <button class="btn secondary" id="cancelEditBtn" onclick="cancelEdit()" style="display:none;">編集をキャンセル</button>
     <div class="msg" id="resultMsg"></div>
-
-    <div style="margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border);">
-      <h2 style="font-family: var(--font-display); font-size: 18px; margin: 0 0 4px;">自分の投稿一覧</h2>
-      <p class="sub" style="margin-bottom: 8px;">ここから自分の投稿を編集・削除できます。</p>
-      <div id="myPromptsList"></div>
-    </div>
   </div>
 </div>
 
@@ -354,8 +351,7 @@
     currentUser = session.user;
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    document.getElementById('userEmail').textContent = session.user.email;
-    loadMyPrompts();
+    loadEditTargetIfAny();
   }
 
   window.submitPrompt = async function () {
@@ -408,87 +404,44 @@
     }
 
     msg.className = 'msg ok';
-    msg.textContent = editingId ? '更新しました！' : '投稿しました！トップページで確認してください。';
+    msg.textContent = editingId ? '更新しました！マイページで確認できます。' : '投稿しました！トップページで確認してください。';
 
     if (editingId) {
-      cancelEdit();
+      setTimeout(() => { window.location.href = 'account.html'; }, 900);
     } else {
       document.getElementById('title').value = '';
       document.getElementById('body').value = '';
     }
-    loadMyPrompts();
   };
 
   window.cancelEdit = function () {
-    editingId = null;
-    document.getElementById('category').value = 'text';
-    document.getElementById('title').value = '';
-    document.getElementById('body').value = '';
-    document.getElementById('submitBtn').textContent = '投稿する';
-    document.getElementById('formTitle').textContent = 'プロンプトを追加';
-    document.getElementById('cancelEditBtn').style.display = 'none';
+    window.location.href = 'account.html';
   };
 
-  window.editPrompt = function (p) {
-    editingId = p.id;
-    document.getElementById('category').value = p.category;
-    document.getElementById('title').value = p.title;
-    document.getElementById('body').value = p.body;
-    document.getElementById('submitBtn').textContent = '更新する';
-    document.getElementById('formTitle').textContent = 'プロンプトを編集';
-    document.getElementById('cancelEditBtn').style.display = 'block';
-    window.scrollTo({ top: document.getElementById('formTitle').offsetTop - 20, behavior: 'smooth' });
-  };
-
-  window.deletePrompt = async function (id) {
-    if (!confirm('このプロンプトを削除しますか？この操作は取り消せません。')) return;
-    const { error } = await supabaseClient.from('prompts').delete().eq('id', id);
-    if (error) {
-      alert('削除に失敗しました: ' + error.message);
-      return;
-    }
-    if (editingId === id) cancelEdit();
-    loadMyPrompts();
-  };
-
-  async function loadMyPrompts() {
-    const listEl = document.getElementById('myPromptsList');
-    listEl.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono); font-size: 12px;">読み込み中...</p>';
+  async function loadEditTargetIfAny() {
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('edit');
+    if (!editId) return;
 
     const { data, error } = await supabaseClient
       .from('prompts')
       .select('*')
+      .eq('id', editId)
       .eq('user_id', currentUser.id)
-      .order('created_at', { ascending: false });
+      .single();
 
-    if (error) {
-      listEl.innerHTML = `<p style="color: var(--amber); font-family: var(--font-mono); font-size: 12px;">読み込みエラー: ${error.message}</p>`;
+    if (error || !data) {
+      alert('編集対象のプロンプトが見つかりませんでした（他の人の投稿は編集できません）。');
       return;
     }
 
-    if (!data || data.length === 0) {
-      listEl.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono); font-size: 12px;">まだ投稿がありません。</p>';
-      return;
-    }
-
-    listEl.innerHTML = '';
-    data.forEach(p => {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); gap: 12px;';
-      row.innerHTML = `
-        <div style="min-width:0;">
-          <div style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.title}</div>
-          <div style="font-family: var(--font-mono); font-size:11px; color:var(--text-muted); margin-top:2px;">${categoryLabels[p.category]} ・ ♥ ${p.likes}</div>
-        </div>
-        <div style="display:flex; gap:8px; flex-shrink:0;">
-          <button class="row-btn" data-action="edit" style="background:none; border:1px solid var(--border); color:var(--text-muted); font-family:var(--font-mono); font-size:11px; padding:5px 10px; border-radius:6px; cursor:pointer;">編集</button>
-          <button class="row-btn" data-action="delete" style="background:none; border:1px solid var(--border); color:var(--amber); font-family:var(--font-mono); font-size:11px; padding:5px 10px; border-radius:6px; cursor:pointer;">削除</button>
-        </div>
-      `;
-      row.querySelector('[data-action="edit"]').addEventListener('click', () => editPrompt(p));
-      row.querySelector('[data-action="delete"]').addEventListener('click', () => deletePrompt(p.id));
-      listEl.appendChild(row);
-    });
+    editingId = data.id;
+    document.getElementById('category').value = data.category;
+    document.getElementById('title').value = data.title;
+    document.getElementById('body').value = data.body;
+    document.getElementById('submitBtn').textContent = '更新する';
+    document.getElementById('formTitle').textContent = 'プロンプトを編集';
+    document.getElementById('cancelEditBtn').style.display = 'block';
   }
 
   // 起動時にログイン状態を確認
