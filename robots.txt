@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /account.html
+Disallow: /reset-password.html
+Disallow: /admin.html
+
+Sitemap: https://promptstash-jp.vercel.app/sitemap.xml
